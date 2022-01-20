@@ -1,0 +1,32 @@
+Display.InputDialog Title: $'''クローリングの開始''' Message: $'''URLを入力''' InputType: Display.InputType.SingleLine IsTopMost: True UserInput=> targetURL ButtonPressed=> ButtonPressed
+WebAutomation.LaunchChrome.LaunchChrome Url: targetURL WindowState: WebAutomation.BrowserWindowState.Normal ClearCache: False ClearCookies: False Timeout: 60 BrowserInstance=> Browser
+WebAutomation.CreateNewTab.CreateNewTabNoWait BrowserInstance: Browser Url: targetURL NewBrowserInstance=> StoreBrowser
+Excel.LaunchExcel.Launch Visible: True LoadAddInsAndMacros: False Instance=> ExcelInstance
+Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: {['店名', 'ジャンル', '電話番号', '住所', 'url'] } Column: 1 Row: 1
+SET PageLoopIndex TO 0
+LOOP WHILE (0) <= (PageLoopIndex)
+    WebAutomation.ExtractData.ExtractList BrowserInstance: Browser Control: $'''h3 > .fs18''' ExtractionParameters: {[$'''''', $'''Href''', $''''''] } ExtractedData=> StoreLinks
+    LOOP StoreLoopIndex FROM 0 TO StoreLinks.RowsCount - 1 STEP 1
+        WebAutomation.GoToWebPage.GoToWebPage BrowserInstance: StoreBrowser Url: StoreLinks[StoreLoopIndex]
+        WebAutomation.ExtractData.ExtractSingleValue BrowserInstance: StoreBrowser ExtractionParameters: {[$'''h1.shopName''', $'''Own Text''', $''''''] } ExtractedData=> ShopName
+        WebAutomation.ExtractData.ExtractSingleValue BrowserInstance: StoreBrowser ExtractionParameters: {[$'''span.telNumber''', $'''Own Text''', $''''''] } ExtractedData=> ShopNumber
+        WebAutomation.ExtractData.ExtractList BrowserInstance: StoreBrowser Control: $'''dd.shopInfoInnerItem > p > a''' ExtractionParameters: {[$'''''', $'''Own Text''', $''''''] } ExtractedData=> ShopGenre
+        WebAutomation.ExtractData.ExtractSingleValue BrowserInstance: StoreBrowser ExtractionParameters: {[$'''address''', $'''Own Text''', $''''''] } ExtractedData=> ShopAddress
+        Excel.WriteToExcel.WriteCell Instance: ExcelInstance Value: {[ShopName[0][0], ShopGenre[0][0], ShopNumber[0][0], ShopAddress[0][0], StoreLinks[StoreLOOpIndex][0]] } Column: 1 Row: PageLoopIndex * 21 + StoreLoopIndex + 2
+    END
+    WebAutomation.ExtractData.ExtractList BrowserInstance: Browser Control: $'''ul.searchResultPageLink   img''' ExtractionParameters: {[$'''''', $'''alt''', $''''''] } ExtractedData=> botan
+    WebAutomation.ExtractData.ExtractList BrowserInstance: Browser Control: $'''ul.searchResultPageLink   a''' ExtractionParameters: {[$'''''', $'''Href''', $''''''] } ExtractedData=> DataFromWebPage
+    IF botan[0][0] = $'''次へ''' THEN
+        WebAutomation.GoToWebPage.GoToWebPage BrowserInstance: Browser Url: DataFromWebPage[0][0]
+    ELSE
+        IF botan[1][0] = $'''次へ''' THEN
+            WebAutomation.GoToWebPage.GoToWebPage BrowserInstance: Browser Url: DataFromWebPage[1][0]
+        ELSE
+            GOTO nukeru
+        END
+    END
+    Variables.IncreaseVariable Value: PageLoopIndex IncrementValue: 1 IncreasedValue=> PageLoopIndex
+END
+LABEL nukeru
+WebAutomation.CloseWebBrowser BrowserInstance: StoreBrowser
+WebAutomation.CloseWebBrowser BrowserInstance: Browser
